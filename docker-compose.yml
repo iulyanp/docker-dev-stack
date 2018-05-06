@@ -1,0 +1,106 @@
+version: '3.4'
+
+services:
+    php-fpm:
+        build:
+            context: ./docker/php-fpm
+            dockerfile: Dockerfile
+        image: iulyanpopa/php-fpm:alpine
+        container_name: php-fpm
+        volumes:
+            - ${PROJECTS_DIR}:/var/www
+            - php-socket:/var/run/php-fpm
+            - logs:/var/log/php-fpm
+        environment:
+            - MY_UID=${MY_UID}
+            - MY_GID=${MY_GID}
+        env_file:
+          - .env
+        depends_on:
+            - mysql
+        networks:
+            - docker
+
+    nginx:
+        build:
+            context: ./docker/nginx
+            dockerfile: Dockerfile
+        image: iulyanpopa/nginx:alpine
+        container_name: nginx
+        ports:
+            - 80:80
+        volumes:
+            - ${PROJECTS_DIR}:/var/www
+            - ${VHOSTS_DIR}:/etc/nginx/sites-enabled
+            - php-socket:/var/run/php-fpm
+            - logs:/var/log/nginx/
+        depends_on:
+            - php-fpm
+        environment:
+            - MY_UID=${MY_UID}
+            - MY_GID=${MY_GID}
+        networks:
+            - docker
+
+    mysql:
+        image: mysql
+        container_name: mysql
+        ports:
+            - 3306:3306
+        volumes:
+            - ./config/mysql:/var/lib/mysql
+        environment:
+            - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+            - MYSQL_USER=${MYSQL_USER}
+            - MYSQL_DATABASE=${MYSQL_DATABASE}
+            - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+        networks:
+            - docker
+
+    rabbit:
+        image: rabbitmq
+        container_name: rabbitmq
+        ports:
+            - 8081:15672
+            - 5672:5672
+            - 5671:5671
+        environment:
+            RABBITMQ_DEFAULT_PASS: pass
+            RABBITMQ_DEFAULT_USER: user
+#            RABBITMQ_DEFAULT_VHOST: vhost
+        networks:
+            - docker
+
+    redis:
+        container_name: redis
+        image: redis:alpine
+        ports:
+            - 6379:6379
+        networks:
+            - docker
+
+    memcache:
+        image: memcached
+        container_name: memcache
+        ports:
+            - 11211:11211
+        networks:
+            - docker
+
+    portainer:
+        image: portainer/portainer
+        container_name: portainer
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - portainer:/data
+        ports:
+            - 8085:9000
+
+networks:
+    docker:
+
+volumes:
+    logs:
+    database:
+    php-socket:
+    portainer:
